@@ -75,13 +75,13 @@ func ConfigFromFile(filename string) (cfg *WebHookConfig, err error) {
 		ZabbixServerPort:     10051,
 		ZabbixHostAnnotation: "zabbix_host",
 		ZabbixKeyPrefix:      "prometheus",
+		ZabbixHostDefault:	  "",
 	}
-
+	
 	err = yaml.Unmarshal(configFile, &config)
 	if err != nil {
 		return nil, fmt.Errorf("can't read the config file: %s", err)
 	}
-
 	log.Info("Configuration loaded")
 	return &config, nil
 }
@@ -148,12 +148,15 @@ func (hook *WebHook) processAlerts() {
 
 			host, _ := a.Annotations[hook.config.ZabbixHostAnnotation]
 
-			// Send alerts only if a host annotation is present
-			if host != "" {
+			// Send alerts only if a host annotation is present or configuration is not nill
+			if host != "" || hook.config.ZabbixHostDefault != "" {
 				key := fmt.Sprintf("%s.%s", hook.config.ZabbixKeyPrefix, strings.ToLower(a.Labels["alertname"]))
 				value := "0"
 				if a.Status == "firing" {
 					value = "1"
+				}
+				if host == "" {
+					host = hook.config.ZabbixHostDefault
 				}
 
 				log.Infof("added Zabbix metrics, host: '%s' key: '%s', value: '%s'", host, key, value)
